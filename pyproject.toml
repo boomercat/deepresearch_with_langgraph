@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "langgraph-deepresearch"
+version = "0.1.0"
+description = "Deep research workflow implemented with LangGraph."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain",
+    "langgraph",
+    "langchain-core",
+    "langsmith",
+    "pydantic",
+    "python-dotenv",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -3,8 +3,8 @@ import os
 from langsmith import Client
 from pydantic import BaseModel, Field
 from langchain.chat_models import init_chat_model
-from langgraph_deepresearch.src.prompts import BRIEF_CRITERIA_PROMPT, BRIEF_HALLUCINATION_PROMPT
-from langgraph_deepresearch.src.clarify_subagent import scope_agent_builder
+from langgraph_deepresearch.prompts import BRIEF_CRITERIA_PROMPT, BRIEF_HALLUCINATION_PROMPT
+from langgraph_deepresearch.clarify_subagent import scope_agent_builder
 # 测试用例
 #---------------------------
 # 测试用例1

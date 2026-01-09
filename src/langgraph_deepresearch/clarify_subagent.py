@@ -9,9 +9,9 @@ from langchain_core.messages import HumanMessage, AIMessage, get_buffer_string
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
 
-from langgraph_deepresearch.src.prompts import clarify_with_user_instructions, transform_messages_into_research_topic_prompt
-from langgraph_deepresearch.src.state import AgentState, ClarifyWithUser, ResearchQuestion, AgentInputState
-from langgraph_deepresearch.src.utils import format_messages
+from langgraph_deepresearch.prompts import clarify_with_user_instructions, transform_messages_into_research_topic_prompt
+from langgraph_deepresearch.state import AgentState, ClarifyWithUser, ResearchQuestion, AgentInputState
+from langgraph_deepresearch.utils import format_messages
 
 def get_today_str() -> str:
     return datetime.now().strftime("%a %b %d %Y")
@@ -99,4 +99,4 @@ if __name__ == "__main__":
     })
     # format_messages(result)
     print(result["messages"])
-    print(f"\n\n {result["research_brief"]}")
+    print(f"\n\n {result['research_brief']}")
