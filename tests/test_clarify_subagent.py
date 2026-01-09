@@ -74,9 +74,8 @@ criteria_2 = [
 
 langsmith_client = Client(api_key=os.getenv("LANGSMITH_API_KEY"))
 
-dataset_name = "clarify_subagent_test"
-if not langsmith_client.has_dataset(dataset_name):
-    langsmith_client.create_dataset(dataset_name)
+dataset_name = "scopeceshi_1"
+if not langsmith_client.has_dataset(dataset_name=dataset_name):
 
     dataset = langsmith_client.create_dataset(
         dataset_name=dataset_name,
@@ -87,11 +86,11 @@ if not langsmith_client.has_dataset(dataset_name):
         examples=[
             {
                 "inputs": {"messages": conversation_1},
-                "outputs": {"messages": criteria_1}
+                "outputs": {"criteria": criteria_1}
             },
             {
                 "inputs": {"messages": conversation_2},
-                "outputs": {"messages": criteria_2}
+                "outputs": {"criteria": criteria_2}
             }
         ]
     )
@@ -149,7 +148,8 @@ def evaluate_success_criteria(outputs: dict, reference_outputs: dict):
     success_criteria = reference_outputs["criteria"]
 
     model = init_chat_model(
-        model=os.getenv("MODEL_NAME"),
+        model=os.getenv("MODEL_NAME"),          # qwen-max / qwen2.5 / deepseek-r1
+        model_provider="openai",                # 关键：强制走 OpenAI-compatible
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url="https://api-inference.modelscope.cn/v1/",
         temperature=0.0,
@@ -256,6 +256,7 @@ def evaluate_no_assumptions(outputs: dict, reference_outputs: dict):
 
     model = init_chat_model(
         model=os.getenv("MODEL_NAME"),
+        model_provider="openai",
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url="https://api-inference.modelscope.cn/v1/",
         temperature=0.0,
@@ -284,8 +285,8 @@ def evaluate_no_assumptions(outputs: dict, reference_outputs: dict):
 if __name__ == "__main__":
     import uuid
     from langgraph.checkpoint.memory import InMemorySaver
-
-    scope = scope_agent_builder(InMemorySaver())
+    checkpointer = InMemorySaver()
+    scope = scope_agent_builder.compile(checkpointer=checkpointer)
 
     def target_func(inputs: dict):
         config = {"configurable": {"thread_id": uuid.uuid4()}}

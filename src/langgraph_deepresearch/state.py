@@ -56,3 +56,68 @@ class ResearchQuestion(BaseModel):
     research_brief: str = Field(
         description="A research question that will be used to guide the research.",
     )
+
+
+class ResearcherState(TypedDict):
+    """
+    research Agent 的 State。
+
+    这个 State 用来保存整个研究过程中需要持续传递的数据，包括：
+    - 对话历史（researcher_messages）
+    - 已经调用工具的次数（用于限制循环）
+    - 当前研究主题
+    - 压缩后的研究结论
+    - 详细的原始研究笔记
+    """
+
+    # 研究 Agent 的对话消息历史
+    # 使用 add_messages 表示：每次节点返回的 messages 会自动追加到这里
+    researcher_messages: Annotated[Sequence[BaseMessage], add_messages]
+    # 工具调用的轮数 / 次数，用于防止无限循环
+    tool_call_iterations: int
+    # 当前正在研究的主题（由用户需求或澄清阶段确定）
+    research_topic: str
+    # 对研究结果的“压缩总结版本”，用于后续生成报告或回答
+    compressed_research: str
+    # 原始研究笔记列表（例如：网页摘要、工具返回结果等）
+    # 使用 operator.add 表示多个节点产生的 notes 会合并到一个 list 中
+    raw_notes: Annotated[List[str], operator.add]
+    
+
+class ResearcherOutputState(TypedDict):
+    """
+    researcher Agent 的最终输出state。
+
+    表示整个研究流程结束后，对外返回的结果，通常包括：
+    - 压缩后的研究结论
+    - 所有原始研究笔记
+    - 最终保留下来的对话记录
+    """
+
+    # 压缩后的研究结论（最终对用户有价值的总结）
+    compressed_research: str
+
+    # 研究过程中产生的全部原始笔记（未压缩）
+    raw_notes: Annotated[List[str], operator.add]
+
+    # 研究 Agent 的对话历史（最终状态）
+    researcher_messages: Annotated[Sequence[BaseMessage], add_messages]
+
+class Summary(BaseModel):
+    """
+    网页或文档内容的结构化摘要模型。
+
+    通常用于：
+    - 对搜索结果页面进行摘要
+    - 提取关键内容，减少上下文长度
+    """
+
+    # 对网页或文档内容的简要总结
+    summary: str = Field(
+        description="网页内容的简明摘要。",
+    )
+
+    # 从内容中摘取的重要原文片段或关键引用
+    key_excerpts: str = Field(
+        description="内容中的关键引述或重要片段。",
+    )
