@@ -6,7 +6,11 @@ load_dotenv()
 from langgraph_deepresearch.utils import get_today_str
 from langgraph_deepresearch.prompts import final_report_generation_prompt
 from langgraph_deepresearch.state import AgentState, AgentInputState
-from langgraph_deepresearch.clarify_subagent import clarify_with_user, write_research_brief
+from langgraph_deepresearch.clarify_subagent import (
+    clarify_with_user,
+    write_research_brief,
+    human_review_research_brief,
+)
 from langgraph_deepresearch.supervisor_agent import supervisor_agent
 
 from langchain.chat_models import init_chat_model
@@ -60,12 +64,28 @@ deep_researcher_builder = StateGraph(AgentState, input_schema=AgentInputState)
 # Add workflow nodes
 deep_researcher_builder.add_node("clarify_with_user", clarify_with_user)
 deep_researcher_builder.add_node("write_research_brief", write_research_brief)
+deep_researcher_builder.add_node("human_review_research_brief", human_review_research_brief)
 deep_researcher_builder.add_node("supervisor_subgraph", supervisor_agent)
 deep_researcher_builder.add_node("final_report_generation", final_report_generation)
 
 # Add workflow edges
 deep_researcher_builder.add_edge(START, "clarify_with_user")
-deep_researcher_builder.add_edge("write_research_brief", "supervisor_subgraph")
+deep_researcher_builder.add_edge("write_research_brief", "human_review_research_brief")
+deep_researcher_builder.add_conditional_edges(
+    "human_review_research_brief",
+    lambda state: (
+        "approved"
+        if state.get("research_brief_approved")
+        else "rejected"
+        if state.get("research_brief_approved") is False
+        else "pending"
+    ),
+    {
+        "approved": "supervisor_subgraph",
+        "rejected": "write_research_brief",
+        "pending": END,
+    },
+)
 deep_researcher_builder.add_edge("supervisor_subgraph", "final_report_generation")
 deep_researcher_builder.add_edge("final_report_generation", END)
 

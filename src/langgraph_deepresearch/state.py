@@ -22,6 +22,12 @@ class AgentState(MessagesState):
    
     #研究摘要 从user的输入中生成
     research_brief: Optional[str]
+    # 人工核查研究摘要是否通过
+    research_brief_approved: Optional[bool]
+    # 人工核查的反馈信息
+    research_brief_review_feedback: Optional[str]
+    # 是否在等待人工核查
+    awaiting_research_brief_review: Optional[bool]
     # 与supervisor的消息
     supervisor_messages: Annotated[Sequence[BaseMessage], add_messages]
     #未整理的消息，从subagent中收集
@@ -55,6 +61,16 @@ class ResearchQuestion(BaseModel):
     """ 生成的研究摘要格式"""
     research_brief: str = Field(
         description="A research question that will be used to guide the research.",
+    )
+
+
+class ResearchBriefReview(BaseModel):
+    """ 研究摘要的人类审核结果 """
+    approve: bool = Field(
+        description="Whether the human approves the research brief.",
+    )
+    feedback: str = Field(
+        description="Feedback for improving the research brief if not approved.",
     )
 
 
