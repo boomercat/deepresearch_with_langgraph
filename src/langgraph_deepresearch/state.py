@@ -121,3 +121,56 @@ class Summary(BaseModel):
     key_excerpts: str = Field(
         description="内容中的关键引述或重要片段。",
     )
+
+
+
+class SupervisorState(TypedDict):
+    """
+    multiagent  supervisor state。
+
+    用于管理 Supervisor 与多个 Research 子智能体之间的协作流程，
+    跟踪研究进度，并汇总来自各个子智能体的研究成果。
+    """
+
+    # Supervisor 与系统 / 子智能体之间用于决策和协调的消息记录
+    supervisor_messages: Annotated[Sequence[BaseMessage], add_messages]
+
+    # 研究总纲 / 研究任务说明，用于指导整体研究方向
+    research_brief: str
+
+    # 已整理、结构化后的研究笔记，用于最终报告生成
+    notes: Annotated[list[str], operator.add] = []
+
+    # 研究迭代次数计数器，记录已执行的研究轮数
+    research_iterations: int = 0
+
+    # 来自各个子智能体的原始研究笔记（尚未整理）
+    raw_notes: Annotated[list[str], operator.add] = []
+
+
+@tool
+class ConductResearch(BaseModel):
+    """
+    研究任务下发工具。
+
+    用于由 Supervisor 将具体研究任务委派给某个专业 Research 子智能体。
+    """
+
+    research_topic: str = Field(
+        description=(
+            "需要研究的主题。必须是一个单一且明确的研究主题，"
+            "并且需要以较高的详细程度进行描述（至少一个完整段落）。"
+        ),
+    )
+
+
+@tool
+class ResearchComplete(BaseModel):
+    """
+    研究完成信号工具。
+
+    用于通知 Supervisor：当前研究流程已经完成，
+    可以进入结果汇总或最终报告生成阶段。
+    """
+    pass
+    
