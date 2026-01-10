@@ -21,7 +21,7 @@ from langgraph_deepresearch.prompts import summarize_webpage_prompt
 
 summarization_model =  init_chat_model(
     model=os.getenv("SUMMARY_MODEL_NAME"),          # qwen-max / qwen2.5 / deepseek-r1
-    model_provider="openai",                # 关键：强制走 OpenAI-compatible
+    model_provider="openai",               
     api_key=os.getenv("OPENAI_API_KEY"),
     base_url="https://api-inference.modelscope.cn/v1/",
     temperature=0.0,
@@ -223,7 +223,63 @@ def tavily_search(
     # 3) 统一格式化输出
     return format_search_output(summarized_results)
 
-    # 
+
+@tool(parse_docstring=True)
+def think_tool(reflection: str) -> str:
+    """Tool for strategic reflection on research progress and decision-making.
+        
+        Use this tool after each search to analyze results and plan next steps systematically.
+        This creates a deliberate pause in the research workflow for quality decision-making.
+        
+        When to use:
+        - After receiving search results: What key information did I find?
+        - Before deciding next steps: Do I have enough to answer comprehensively?
+        - When assessing research gaps: What specific information am I still missing?
+        - Before concluding research: Can I provide a complete answer now?
+        
+        Reflection should address:
+        1. Analysis of current findings - What concrete information have I gathered?
+        2. Gap assessment - What crucial information is still missing?
+        3. Quality evaluation - Do I have sufficient evidence/examples for a good answer?
+        4. Strategic decision - Should I continue searching or provide my answer?
+        
+        Args:
+            reflection: Your detailed reflection on research progress, findings, gaps, and next steps
+            
+        Confirmation that reflection was recorded for decision-making
+    """
+    
+    return f"Reflection recorded: {reflection}"
+
+
+
+
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph_deepresearch.utils import get_current_dir
+
+mcp_config = {
+    "filesystem": {
+        "command": "npx",
+        "args": [
+            "-y",  # Auto-install if needed
+            "@modelcontextprotocol/server-filesystem",
+            str(get_current_dir() / "files")  # Path to research documents
+        ],
+        "transport": "stdio"  # Communication via stdin/stdout
+    }
+}
+
+_client = None
+
+def get_mcp_client():
+    """Get or initialize MCP client lazily to avoid issues with LangGraph Platform."""
+    global _client
+    if _client is None:
+        _client = MultiServerMCPClient(mcp_config)
+    return _client
+
+
+    # """
     # 思考工具：让 Agent 在每次搜索后做“战略性复盘”，避免无脑继续搜。
 
     # 建议使用时机：
@@ -241,32 +297,4 @@ def tavily_search(
     # 参数:
     #     reflection: 复盘内容（Agent 自己写的）
 
-    # 返回:
-    #     确认信息（告诉 Agent 已记录复盘）
     # """
-@tool(parse_docstring=True)
-def think_tool(reflection: str) -> str:
-
-    """Tool for strategic reflection on research progress and decision-making.
-    
-    Use this tool after each search to analyze results and plan next steps systematically.
-    This creates a deliberate pause in the research workflow for quality decision-making.
-    
-    When to use:
-    - After receiving search results: What key information did I find?
-    - Before deciding next steps: Do I have enough to answer comprehensively?
-    - When assessing research gaps: What specific information am I still missing?
-    - Before concluding research: Can I provide a complete answer now?
-    
-    Reflection should address:
-    1. Analysis of current findings - What concrete information have I gathered?
-    2. Gap assessment - What crucial information is still missing?
-    3. Quality evaluation - Do I have sufficient evidence/examples for a good answer?
-    4. Strategic decision - Should I continue searching or provide my answer?
-    
-    Args:
-        reflection: Your detailed reflection on research progress, findings, gaps, and next steps
-        
-    Confirmation that reflection was recorded for decision-making
-    """
-    return f"Reflection recorded: {reflection}"

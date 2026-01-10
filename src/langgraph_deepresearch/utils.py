@@ -1,7 +1,8 @@
-# import Path
 from datetime import datetime
 from rich.panel import Panel
 from rich.console import Console
+from pathlib import Path
+from langchain_core.tools import tool, InjectedToolArg
 
 console = Console()
 
@@ -9,12 +10,14 @@ def get_today_str() -> str:
     return datetime.now().strftime("%a %b %-d, %Y")
 
 
-# def get_current_dir() -> Path:
+def get_current_dir() -> Path:
 
-#     try:
-#         return Path(__file__).resolve().parent
-#     except NameError:  # __file__ is not defined
-#         return Path.cwd()
+    try:
+        return Path(__file__).resolve().parent
+    except NameError:  # __file__ is not defined
+        return Path.cwd()
+
+
 
 # def format_messages(messages):
 #     """Format and display a list of messages with Rich formatting"""

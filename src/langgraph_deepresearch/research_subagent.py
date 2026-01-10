@@ -11,7 +11,10 @@ from langchain.chat_models import init_chat_model
 from langgraph_deepresearch.state import ResearcherState, ResearcherOutputState
 from langgraph_deepresearch.tools import tavily_search, think_tool
 from langgraph_deepresearch.utils import get_today_str
-from langgraph_deepresearch.prompts import research_agent_prompt, compress_research_system_prompt, compress_research_human_message
+from langgraph_deepresearch.prompts import research_agent_prompt_fused , compress_research_system_prompt, compress_research_human_message
+from langgraph_deepresearch.tools import get_mcp_client
+
+_client = None
 
 tools = [tavily_search, think_tool]
 tools_by_name = {tool.name: tool for tool in tools}
@@ -42,7 +45,7 @@ compress_model =  init_chat_model(
 )
 
 
-def llm_call(state: ResearcherState):
+async def llm_call(state: ResearcherState):
     """
     基于当前 state 做下一步决策（要不要调用工具 / 直接回答）。
 
@@ -53,17 +56,21 @@ def llm_call(state: ResearcherState):
     返回：
         对 state 的增量更新：追加一条新的 AIMessage 到 researcher_messages。
     """
+    client = get_mcp_client()
+    mcp_tools = await client.get_tools()
+    tools = mcp_tools + [think_tool, tavily_search]
+    model_with_tools = model.bind_tools(tools)
     return {
         "researcher_messages": [
             model_with_tools.invoke(
-                [SystemMessage(content=research_agent_prompt)] + state["researcher_messages"]
+                [SystemMessage(content=research_agent_prompt_fused)] + state["researcher_messages"]
             )
         ]
     }
 
 
 
-def tool_node(state: ResearcherState):
+async def tool_node(state: ResearcherState):
     """
     执行上一条 LLM 输出里请求的所有工具调用（tool_calls）。
 
@@ -76,24 +83,46 @@ def tool_node(state: ResearcherState):
     """
     tool_calls = state["researcher_messages"][-1].tool_calls
 
-    # 执行所有 tool calls（串行执行）
-    observations = []
-    for tool_call in tool_calls:
-        tool = tools_by_name[tool_call["name"]]
-        observations.append(tool.invoke(tool_call["args"]))
+    async def execute_tools():
+        """
+        实际执行所有工具调用的内部协程。
 
-    # 把工具输出结果包装成 ToolMessage（这很关键：后续 LLM 通过 ToolMessage 获取工具结果）
-    tool_outputs = [
-        ToolMessage(
-            content=observation,
-            name=tool_call["name"],
-            tool_call_id=tool_call["id"]
-        )
-        for observation, tool_call in zip(observations, tool_calls)
-    ]
+        说明：
+        - 每次执行时都会从 MCP server 获取最新的工具列表
+        - MCP 工具是异步的，需要使用 ainvoke
+        - think_tool 是本地同步工具，需要特殊处理
+        """
+        # 连接 MCP server，获取最新的工具定义
+        client = get_mcp_client()
+        mcp_tools = await client.get_tools()
 
-    return {"researcher_messages": tool_outputs}
+        # MCP 工具 + 本地 think_tool/tavily_search 组合成完整工具列表
+        tools = mcp_tools + [think_tool, tavily_search]
+        tools_by_name = {tool.name: tool for tool in tools}
 
+        observations = []
+        for tool_call in tool_calls:
+            tool = tools_by_name[tool_call["name"]]
+            if tool_call["name"] == "think_tool":
+                # think_tool is sync, use regular invoke
+                observation = tool.invoke(tool_call["args"])
+            else:
+                # MCP tools are async, use ainvoke
+                observation = await tool.ainvoke(tool_call["args"])
+            observations.append(observation)
+
+        tool_outputs = [
+            ToolMessage(
+                content=observation,
+                name=tool_call["name"],
+                tool_call_id=tool_call["id"],
+            )
+            for observation, tool_call in zip(observations, tool_calls)
+        ]
+
+        return tool_outputs
+    messages = await execute_tools()
+    return {"researcher_messages": messages}
 
 
 def compress_research(state: ResearcherState) -> dict:
@@ -189,7 +218,7 @@ agent_builder.add_edge("compress_research", END)
 
 researcher_agent = agent_builder.compile()
 
-if __name__ == "__main__":
+async def main():
 
     research_brief = """我希望识别并评估东北地区范围内、以咖啡品质著称的咖啡店。研究应聚焦于对东北地区咖啡店的分析与比较，并以咖啡品质作为唯一的核心评判标准。
 
@@ -197,7 +226,11 @@ if __name__ == "__main__":
 
     研究过程中请优先参考一手与权威来源，包括但不限于：咖啡店的官方网站、可信的第三方咖啡评测机构，以及 百度、美团 等主流评价平台中直接反映顾客对咖啡品质评价的内容。
 
-    研究最终应形成一份有充分依据支撑的东北地区顶级咖啡店清单或排名，并基于截至 2025 年 7 月的最新可获得数据，重点突出各咖啡店在咖啡品质方面的表现。"""
+    研究最终应形成一份有充分依据支撑的东北地区顶级咖啡店清单或排名，重点突出各咖啡店在咖啡品质方面的表现。"""
 
-    result = researcher_agent.invoke({"researcher_messages": [HumanMessage(content=f"{research_brief}.")]})
+    result = await researcher_agent.ainvoke({"researcher_messages": [HumanMessage(content=f"{research_brief}.")]})
     print(result)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
