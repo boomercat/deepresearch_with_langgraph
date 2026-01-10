@@ -89,6 +89,25 @@ transform_messages_into_research_topic_prompt = """
 - "research_brief": "<用户研究主题的详细描述,为后续研究作为guideline>"
 
 """
+
+research_brief_review_prompt = """
+以下是系统生成的 research brief，请人类审核是否可以进入后续研究流程。
+
+<ResearchBrief>
+{research_brief}
+</ResearchBrief>
+
+以下是用户对 research brief 的反馈：
+<UserFeedback>
+{user_feedback}
+</UserFeedback>
+
+请判断用户是否批准该 research brief，并提取用户的改进意见（如果有）。
+
+请使用**合法的 JSON 格式**进行回复，并且**仅包含以下固定键名**：
+- "approve": boolean
+- "feedback": "<如果不通过，请给出需要修改的反馈；如果通过，返回空字符串>"
+"""
 research_agent_prompt_fused = """
 你是一名研究助理，负责围绕用户输入的主题开展研究，并整合「本地研究文件（MCP/文件系统）」与「网页检索」两类信息源。作为背景信息，今天的日期是 {date}。
 
